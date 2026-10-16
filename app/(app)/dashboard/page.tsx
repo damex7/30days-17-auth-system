@@ -84,7 +84,7 @@ async function Dashboard({ searchParams }: Pick<PageProps<'/dashboard'>, 'search
         </h2>
         <p>
           Your browser sent a cookie holding a random key. The server hashed it with SHA-256, found the matching row in the <code>sessions</code> table,
-          and joined your account to it. Because you used it within the last 15 days of its life, the expiry slid forward to 30 days from now.
+          and joined your account to it. Whenever a request arrives in the last 15 days of a session’s life, its expiry slides forward to 30 days from that moment, so you stay signed in while you keep coming back.
         </p>
         <p>
           Revoke this session from <Link href="/account/sessions" className="font-semibold text-teal underline">Sessions</Link> on another device,
