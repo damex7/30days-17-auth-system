@@ -90,6 +90,15 @@ export async function checkRateLimit(action: RateLimitAction, ip: string, accoun
   return { ok: false, retryAfterSeconds, message: tryAgainMessage(retryAfterSeconds) }
 }
 
+/**
+ * After a SUCCESSFUL password check, forget that account's failed
+ * attempts, so the real owner never locks themselves out by signing in or
+ * confirming their password a few times in a row. (The per-IP count stays.)
+ */
+export async function clearAccountRateLimit(action: RateLimitAction, account: string): Promise<void> {
+  await sql`DELETE FROM rate_limits WHERE key = ${accountKey(action, account)}`
+}
+
 export function tryAgainMessage(seconds: number): string {
   const minutes = Math.ceil(seconds / 60)
   return `Too many attempts. Please try again in ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}.`
