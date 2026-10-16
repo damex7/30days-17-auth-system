@@ -1,26 +1,258 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * KỌ́KỌ́RỌ́ DESIGN TOKENS: palette "brass key on a teal door".
+ *
+ * An auth system is a door and a key, so:
+ *   - STONE, a cool grey, is the wall the door is set in: the page.
+ *   - TEAL, deep and blue-green, is the door and the ink: text, headings
+ *     and primary buttons. Calm and steady, the opposite of an alarm.
+ *   - BRASS is the polished key. Used sparingly: the key motif, the focus
+ *     halo, the "you are here" marker. Text placed ON brass is always dark;
+ *     brass is never used as text on the light page (too little contrast).
+ * By night the page is a deep teal-black, the text is soft stone and the
+ * brass stays brass.
+ *
+ * Status colours are kept well away from the brand:
+ *   - danger: a cool crimson;
+ *   - warning: PLUM. The usual amber would look like the brass accent (and
+ *     orange is off-limits), so warnings use a colour nothing else uses;
+ *   - success: a forest green, yellower than the brand teal.
+ * Every status message also carries an icon and a word ("Error:",
+ * "Warning:"), so colour is never the only signal.
+ *
+ * `npm run check:contrast` checks every text/background pair the UI uses,
+ * in both themes. Each colour is defined ONCE as light-dark(light, dark);
+ * the browser picks a side from `color-scheme`, which the theme toggle sets
+ * via data-theme, so components need no `dark:` classes for colour.
+ */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* `--color-*: initial` removes Tailwind's default palette, so an off-brand
+   `bg-orange-500` simply doesn't exist. */
+@theme {
+  --color-*: initial;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  /* Surfaces: the page (stone), raised cards, sunken wells. */
+  --color-stone: light-dark(#e6e9e5, #081514);
+  --color-raised: light-dark(#f5f6f3, #0e201f);
+  --color-sunken: light-dark(#dbe0db, #050d0c);
+  --color-line: light-dark(#c3cbc5, #1e3533);
+  /* Borders that must be SEEN (inputs, buttons): 3:1 against the surfaces. */
+  --color-line-strong: light-dark(#6c7a76, #688882);
+
+  /* Ink: deep teal on stone by day, soft stone on teal-black by night. */
+  --color-ink: light-dark(#0c3436, #dde3dc);
+  --color-muted: light-dark(#3d5452, #a5b5b1);
+
+  /* The door: primary buttons, links, the selected tab. In dark mode the
+     button turns pale teal with dark text, so it still reads as "the" button. */
+  --color-teal: light-dark(#0e4547, #a6d6cf);
+  --color-teal-hover: light-dark(#093235, #c4e6e1);
+  --color-on-teal: light-dark(#f3f5f1, #062221);
+  --color-teal-soft: light-dark(#d2e0dc, #143432);
+
+  /* The door panel behind the key mark: deep teal in both themes. */
+  --color-door: light-dark(#0e4547, #12403f);
+
+  /* The key. Same polished brass in both themes; text on it is always dark. */
+  --color-brass: #c9a24a;
+  --color-brass-bright: #e2c06d;
+  --color-on-brass: #1f1906;
+
+  /* Status colours. Each has a strong form (text, icons, fills) and a soft
+     background for banners. */
+  --color-danger: light-dark(#a3182f, #ff9aac);
+  --color-danger-hover: light-dark(#86122a, #ffbac6);
+  --color-on-danger: light-dark(#ffffff, #2a0710);
+  --color-danger-soft: light-dark(#f4dade, #36121b);
+
+  --color-warning: light-dark(#6a2a7c, #dcb0ec);
+  --color-warning-soft: light-dark(#ece0f1, #2b1736);
+
+  --color-success: light-dark(#1f6537, #8ed9a6);
+  --color-success-soft: light-dark(#d8ebdc, #0f2d1a);
+
+  /* Focus: a teal ring with a brass halo by day; a brass ring by night. */
+  --color-focus: light-dark(#0e4547, #e2c06d);
+  --color-focus-halo: light-dark(#e2c06d, #081514);
+
+  --color-white: #ffffff;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  /* Typography (variables from next/font in app/layout.tsx).
+     Gelasio: a sturdy, warm serif with old-style proportions, for headings
+     and the wordmark. It stacks Yoruba tone marks on dotted letters (ọ́).
+     Atkinson Hyperlegible Next: designed for legibility, with 0/O, 1/l/I
+     drawn distinctly, for forms and body text, where people type passwords
+     and emails. Its mono sibling shows IP addresses and timestamps. */
+  --font-display: var(--font-gelasio), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-atkinson), system-ui, sans-serif;
+  --font-mono: var(--font-atkinson-mono), ui-monospace, monospace;
+
+  --radius-control: 0.5rem;
+  --radius-card: 0.875rem;
+  --radius-pill: 999px;
+
+  /* Shadows tinted teal rather than grey. */
+  --shadow-card: 0 1px 2px rgb(12 52 54 / 0.06), 0 14px 34px -20px rgb(12 52 54 / 0.35);
+  --shadow-pop: 0 18px 40px -16px rgb(4 20 20 / 0.5);
+
+  --container-form: 27rem;
+  --container-page: 64rem;
+
+  --animate-rise: rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+  --animate-insert: insert 0.9s cubic-bezier(0.3, 0.7, 0.2, 1) 0.2s both;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: 150% 0;
+    }
+    to {
+      background-position: -50% 0;
+    }
+  }
+  /* The key sliding towards the lock, on the landing page. */
+  @keyframes insert {
+    from {
+      transform: translateX(-28px);
+      opacity: 0;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/*
+ * THEME SWITCHING. `color-scheme` decides which side of light-dark() wins.
+ * - No attribute (no saved choice, or JavaScript off): follow the OS.
+ * - data-theme="light" | "dark": set before first paint by the inline script
+ *   in app/layout.tsx, so a saved choice never flashes the other theme.
+ */
+:root {
+  color-scheme: light dark;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-stone);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    overflow-wrap: break-word;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* ONE focus style for keyboard users everywhere: a solid ring (3:1 or
+     more against every surface) plus a brass halo between it and the
+     control, like light catching the edge of a key. */
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 3px var(--color-focus-halo);
+  }
+  /* Text fields show focus on their own border instead (see .field). */
+  input:focus-visible,
+  textarea:focus-visible {
+    box-shadow: none;
+  }
+  /* The error summary takes focus by script; it gets the ring too. */
+  [tabindex="-1"]:focus {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background-color: var(--color-brass-bright);
+    color: var(--color-on-brass);
+  }
+
+  a {
+    text-underline-offset: 0.2em;
+  }
+
+  ::placeholder {
+    color: var(--color-muted);
+    opacity: 1;
+  }
+
+  dialog::backdrop {
+    background: rgb(4 14 14 / 0.6);
+  }
+}
+
+/* Inputs: a visible border, and a thick teal (or brass) edge when focused.
+   aria-invalid fields get a crimson border; the message under the field
+   says what is wrong in words. */
+@utility field {
+  background-color: var(--color-raised);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-control);
+  color: var(--color-ink);
+  &[aria-invalid="true"] {
+    border-color: var(--color-danger);
+    border-width: 2px;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 1px;
+    border-color: var(--color-focus);
+  }
+}
+
+/* Skeleton shimmer for loading states. */
+@utility skeleton {
+  background-image: linear-gradient(90deg, var(--color-sunken) 0%, var(--color-line) 50%, var(--color-sunken) 100%);
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+  border-radius: var(--radius-control);
+}
+
+/* A row of small brass studs, like the nail heads on an old wooden door. */
+@utility stud-rule {
+  background-image: radial-gradient(circle, var(--color-brass) 1.6px, transparent 2px);
+  background-size: 14px 8px;
+  background-repeat: repeat-x;
+  background-position: left center;
+}
+
+/*
+ * REDUCED MOTION: people who ask their OS for less motion get none.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
