@@ -38,10 +38,15 @@ function accountPart(account: string): string {
   return createHash('sha256').update(account.trim().toLowerCase()).digest('hex').slice(0, 32)
 }
 
+/** The key that counts attempts against one account (an email, or a user id). */
+export function accountKey(action: RateLimitAction, account: string): string {
+  return `${action}:account:${accountPart(account)}`
+}
+
 function keysFor(action: RateLimitAction, ip: string, account: string | null) {
   const { perIp, perAccount } = RATE_LIMITS[action]
   const keys = [{ key: `${action}:ip:${ip}`, limit: perIp }]
-  if (account) keys.push({ key: `${action}:account:${accountPart(account)}`, limit: perAccount })
+  if (account) keys.push({ key: accountKey(action, account), limit: perAccount })
   return keys
 }
 
@@ -83,15 +88,6 @@ export async function checkRateLimit(action: RateLimitAction, ip: string, accoun
   }
   if (retryAfterSeconds === 0) return { ok: true }
   return { ok: false, retryAfterSeconds, message: tryAgainMessage(retryAfterSeconds) }
-}
-
-/**
- * After a SUCCESSFUL login, forget that account's failed attempts, so
- * signing in and out a few times in a row never locks out the real owner.
- * (The per-IP count stays.)
- */
-export async function clearAccountRateLimit(action: RateLimitAction, account: string): Promise<void> {
-  await sql`DELETE FROM rate_limits WHERE key = ${`${action}:account:${accountPart(account)}`}`
 }
 
 export function tryAgainMessage(seconds: number): string {

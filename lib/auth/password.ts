@@ -147,6 +147,7 @@ export async function checkBreachedPassword(password: string): Promise<BreachChe
 
 /** The message shown for a breached password. Tells the user why, without blaming them. */
 export function breachedMessage(count: number): string {
-  const times = count >= 1000 ? `${Math.floor(count / 1000).toLocaleString('en')} thousand` : count.toLocaleString('en')
-  return `This password has appeared in ${times} data breaches, so attackers try it early. Please choose a different one.`
+  const times =
+    count >= 1_000_000 ? `over ${Math.floor(count / 1_000_000).toLocaleString('en')} million` : count >= 1000 ? `over ${Math.floor(count / 1000).toLocaleString('en')} thousand` : count.toLocaleString('en')
+  return `This password has been seen ${times} times in data breaches, so attackers try it early. Please choose a different one.`
 }

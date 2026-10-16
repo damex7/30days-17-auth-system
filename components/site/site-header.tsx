@@ -1,9 +1,9 @@
 import Link from 'next/link'
-import { unstable_rethrow } from 'next/navigation'
 import { Suspense } from 'react'
 import { Logo } from '@/components/brand/key'
 import { button } from '@/components/ui/button'
 import { getCurrentSession } from '@/lib/auth/dal'
+import { rethrowNextErrors } from '@/lib/next-errors'
 import { SignOutButton } from './sign-out-button'
 import { ThemeToggle } from './theme-toggle'
 
@@ -37,7 +37,7 @@ async function AccountControls() {
     // problem as "signed out" here: the header shouldn't take the whole
     // public page down. Protected pages still fail loudly through their
     // error boundary.
-    unstable_rethrow(error)
+    rethrowNextErrors(error)
     console.error('[header] Could not read the session:', error)
   }
 
