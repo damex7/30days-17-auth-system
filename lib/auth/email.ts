@@ -6,15 +6,43 @@
 // - Not set: the email, link included, is printed to the server console.
 //   Handy in development: sign up, then copy the link from the terminal.
 import 'server-only'
+import { createHash } from 'node:crypto'
 
 export type Email = {
   to: string
   subject: string
   text: string
   html: string
+  /**
+   * Resend keeps one email per key for 24 hours, so if a send is retried
+   * (by us after a network blip, or by a double-submitted form) the user
+   * still gets exactly one link.
+   */
+  idempotencyKey?: string
 }
 
 const RESEND_TIMEOUT_MS = 8000
+/** One retry is enough for a blip, and keeps the form responsive. */
+const MAX_ATTEMPTS = 2
+const MAX_RETRY_WAIT_MS = 2000
+
+/** A stable, non-secret key for an email tied to a one-time token. */
+function keyFor(kind: string, token: string): string {
+  return `${kind}/${createHash('sha256').update(token).digest('hex').slice(0, 32)}`
+}
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/** Network errors, 429 (rate limited) and 5xx are worth one more try; other 4xx are our bug. */
+function isRetryable(status: number): boolean {
+  return status === 429 || status >= 500
+}
+
+function retryDelay(response: Response | null, attempt: number): number {
+  const header = Number(response?.headers.get('retry-after'))
+  const ms = Number.isFinite(header) && header > 0 ? header * 1000 : 500 * 2 ** (attempt - 1)
+  return Math.min(ms, MAX_RETRY_WAIT_MS)
+}
 
 /**
  * The site's public address, used to build every link in every email.
@@ -49,27 +77,46 @@ export async function sendEmail(email: Email): Promise<boolean> {
     return true
   }
 
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: process.env.EMAIL_FROM ?? 'Kọ́kọ́rọ́ <onboarding@resend.dev>',
-        to: [email.to],
-        subject: email.subject,
-        text: email.text,
-        html: email.html,
-      }),
-      signal: AbortSignal.timeout(RESEND_TIMEOUT_MS),
-      cache: 'no-store',
-    })
-    if (!response.ok) throw new Error(`Resend answered ${response.status}: ${await response.text()}`)
-    return true
-  } catch (error) {
-    // The email address itself stays out of the logs.
-    console.error(`[email] Sending "${email.subject}" failed:`, error instanceof Error ? error.message : error)
-    return false
+  const headers: Record<string, string> = { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }
+  if (email.idempotencyKey) headers['Idempotency-Key'] = email.idempotencyKey
+  const body = JSON.stringify({
+    from: process.env.EMAIL_FROM ?? 'Kọ́kọ́rọ́ <onboarding@resend.dev>',
+    to: [email.to],
+    subject: email.subject,
+    text: email.text,
+    html: email.html,
+  })
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    let response: Response | null = null
+    try {
+      response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers,
+        body,
+        signal: AbortSignal.timeout(RESEND_TIMEOUT_MS),
+        cache: 'no-store',
+      })
+      if (response.ok) {
+        const { id } = (await response.json().catch(() => ({}))) as { id?: string }
+        console.log(`[email] Sent "${email.subject}" (Resend id ${id ?? 'unknown'})`)
+        return true
+      }
+      const detail = `Resend answered ${response.status}: ${await response.text()}`
+      if (!isRetryable(response.status) || attempt === MAX_ATTEMPTS) throw new Error(detail)
+      console.warn(`[email] ${detail}; retrying`)
+    } catch (error) {
+      // A timeout or network error has no response; it's worth a retry too.
+      const finalAttempt = attempt === MAX_ATTEMPTS || (response !== null && !isRetryable(response.status))
+      if (finalAttempt) {
+        // The email address itself stays out of the logs.
+        console.error(`[email] Sending "${email.subject}" failed:`, error instanceof Error ? error.message : error)
+        return false
+      }
+    }
+    await wait(retryDelay(response, attempt))
   }
+  return false
 }
 
 // ---------------------------------------------------------------------------
@@ -102,6 +149,7 @@ export function verifyEmailMessage(to: string, name: string, token: string): Ema
   return {
     to,
     subject: 'Confirm your email address',
+    idempotencyKey: keyFor('verify-email', token),
     text: `Hello ${name},\n\nPlease confirm your email address by opening this link:\n${url}\n\nThe link works once and expires in 24 hours.`,
     html: layout(
       'Confirm your email address',
@@ -116,6 +164,7 @@ export function resetPasswordMessage(to: string, name: string, token: string): E
   return {
     to,
     subject: 'Reset your password',
+    idempotencyKey: keyFor('reset-password', token),
     text: `Hello ${name},\n\nSomeone (hopefully you) asked to reset your password. Open this link to choose a new one:\n${url}\n\nThe link works once and expires in 30 minutes. If you didn't ask for this, ignore this email: your password hasn't changed.`,
     html: layout(
       'Reset your password',

@@ -489,7 +489,7 @@ Light and dark modes switch with no flash (an inline `<head>` script). Every pag
 | Audit log | `lib/auth/events.ts`, `db/migrations/004_auth_events.sql` | Insert-only events, written in the same transaction as the change |
 | Safe redirects | `lib/safe-redirect.ts` | `next` must resolve to this origin |
 | Request info | `lib/auth/request.ts` | IP from `x-forwarded-for` (trusted on Vercel), Vercel geo headers for a coarse location |
-| Email abstraction | `lib/auth/email.ts` | One `sendEmail()`; links built from `APP_URL` to prevent reset poisoning |
+| Email abstraction | `lib/auth/email.ts` | One `sendEmail()`; links built from `APP_URL` to prevent reset poisoning; idempotency keys and one retry so a link is never sent twice or lost to a blip |
 | Zod at both boundaries | `lib/validation.ts`, `lib/rows.ts` | Inputs from forms, rows from Postgres |
 | Accessible forms | `components/forms/` | Labels, autocomplete, `aria-describedby`, focused error summary, pending state |
 | Session reads under Cache Components | `app/(app)/layout.tsx`, every page | Session reads inside `<Suspense>`, never at a layout's top level |
