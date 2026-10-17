@@ -65,9 +65,17 @@ export async function getRequestInfo(): Promise<RequestInfo> {
  * "Origin: https://evil.example" and fails here. A request with no Origin at
  * all (very old browsers, or curl) is refused too: when in doubt, don't
  * change anything.
+ *
+ * ONE EXCEPTION: "Origin: null". A page served with "Referrer-Policy:
+ * no-referrer" (our /verify-email and /reset-password, see next.config.ts)
+ * makes the browser send Origin: null even for its OWN forms, so signing
+ * out from those pages would be refused. Then we ask Sec-Fetch-Site, which
+ * the browser always sets and page scripts can't change: "same-origin"
+ * means the form really was on our site.
  */
 export function isSameOrigin(request: Request): boolean {
   const origin = request.headers.get('origin')
+  if (origin === 'null') return request.headers.get('sec-fetch-site') === 'same-origin'
   if (!origin) return false
   const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host')
   try {
